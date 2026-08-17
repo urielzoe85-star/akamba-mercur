@@ -42,6 +42,11 @@ const Form = () => {
   const searchParams = useSearchParams();
   const isSessionExpired = searchParams.get('sessionExpired') === 'true';
   const isSessionRequired = searchParams.get('sessionRequired') === 'true';
+  const requestedRedirect = searchParams.get('redirectTo');
+  const redirectTo =
+    requestedRedirect?.startsWith('/') && !requestedRedirect.startsWith('//')
+      ? requestedRedirect
+      : '/user';
 
   const submit = async (data: FieldValues) => {
     const formData = new FormData();
@@ -51,14 +56,13 @@ const Form = () => {
     const res = await login(formData);
 
     if (res.success) {
-      router.push('/user');
       await transferCart();
+      router.replace(redirectTo);
+      return;
     } else {
+      setIsAuthError(true);
       toast.error({ title: res.message || 'An error occurred. Please try again.' });
     }
-
-    setIsAuthError(false);
-    router.push('/user');
   };
 
   const clearApiError = () => {

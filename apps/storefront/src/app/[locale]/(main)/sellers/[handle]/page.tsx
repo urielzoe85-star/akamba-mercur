@@ -10,6 +10,7 @@ import {
 import { SellerDTO } from "@mercurjs/types"
 import type { Metadata } from "next"
 import { headers } from "next/headers"
+import { BRAND, getSiteUrl } from "@/config/brand"
 
 export async function generateMetadata({
   params,
@@ -26,7 +27,7 @@ export async function generateMetadata({
   const headersList = await headers()
   const host = headersList.get("host")
   const protocol = headersList.get("x-forwarded-proto") || "https"
-  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || `${protocol}://${host}`
+  const baseUrl = getSiteUrl(`${protocol}://${host}`)
 
   let locales: string[] = []
   try {
@@ -43,9 +44,7 @@ export async function generateMetadata({
   })
 
   const title = seller.name
-  const description = `${seller.name} - ${
-    process.env.NEXT_PUBLIC_SITE_NAME || "Storefront"
-  }`
+  const description = `${seller.name} - ${BRAND.name}`
 
   return {
     title,
@@ -56,10 +55,10 @@ export async function generateMetadata({
       languages,
     },
     openGraph: {
-      title: `${title} | ${process.env.NEXT_PUBLIC_SITE_NAME || "Storefront"}`,
+      title: `${title} | ${BRAND.name}`,
       description,
       url: canonical,
-      siteName: process.env.NEXT_PUBLIC_SITE_NAME || "Storefront",
+      siteName: BRAND.name,
       type: "website",
     },
   }

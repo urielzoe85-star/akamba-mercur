@@ -1,120 +1,71 @@
-# Session Handoff -- Mercur.js
+# Session Handoff — AKAMBA sur Mercur
 
-## Last Session: 2026-05-15
+## État au 17 août 2026
 
-### What Was Accomplished
+AKAMBA reste une personnalisation de Mercur/Medusa. Le Storefront reste prévu pour Vercel. Aucun reset de base, suppression de migration, secret, abonnement payant ou changement de version majeure non nécessaire n'a été effectué.
 
-1. **Lint toolchain migration: ESLint -> oxlint**
-   - Root `package.json` `lint` script switched to `oxlint`; added `oxlint ^1.64.0` devDependency; dropped `format` and `check-types` root scripts.
-   - Per-package lint scripts updated in `packages/admin/package.json` (`oxlint --max-warnings 0`) and `apps/admin-test/package.json` (`oxlint`).
-   - New `.oxlintrc.json` at repo root: `typescript`, `react`, `import`, `jsx-a11y` plugins, `correctness=error / suspicious=warn / perf=warn`, ignore patterns for `dist`, `build`, `.next`, `.turbo`, `.medusa`, `.mercur`, `coverage`. `react/react-in-jsx-scope` disabled (React 17+ JSX automatic runtime).
-   - First lint pass: `bunx oxlint --quiet` reports **0 errors / 1190 warnings** across 4390 files.
-   - `bun.lock` regenerated.
+## Réalisé
 
-2. **Turbo pipeline cleanup**
-   - `turbo.json` `build.outputs` changed from `.next/**` to `dist/**, .medusa/**, !**/cache/**`.
-   - `dev` task now declares `dependsOn: ["^build"]` so dashboards see freshly built upstream packages (needed for the canary.5 dashboard-sdk dedupe fix to actually take effect).
+### Storefront et marque
 
-3. **Repository cleanup**
-   - Removed unused tooling: `tools/template-sync/check.ts`, `tools/template-sync/config.ts`.
-   - Removed stale meilisearch integration test files: `integration-tests/src/api/admin/meilisearch/route.ts`, `integration-tests/src/api/store/meilisearch/products/search/route.ts`, `integration-tests/src/api/middlewares.ts`.
-   - Dropped `test:integration:meilisearch` script from `integration-tests/package.json`.
-   - Removed superseded docs: `docs/seller.md`, `docs/seller-members.md`, `docs/subscriptions.md`.
-   - Removed `AGENTS.md` (Claude-Code-only project now; see new `CLAUDE.md`).
+- Le middleware est stabilisé : locale pays exacte, remplacement des préfixes invalides, repli déterministe sur `cm`, cache des régions tolérant aux erreurs, timeout backend, routes protégées par segments et redirections de connexion sûres.
+- La redirection du formulaire de connexion n'est exécutée qu'après une authentification réussie et accepte uniquement un `redirectTo` local.
+- La configuration de marque est centralisée dans `apps/storefront/src/config/brand.ts` : AKAMBA, Cameroun, `cm`, `fr-CM`, `XAF`, URL, logo, Open Graph et identifiants mobiles.
+- Logo, métadonnées, SEO, hreflang, accueil, en-tête, pied de page, panier, checkout, catégories, collections et vendeurs consomment ce branding.
+- Un manifest PWA et les routes `.well-known` Apple/Android sont prêts. Elles renvoient volontairement `503` tant que les identifiants de signature requis ne sont pas configurés.
+- La dépendance réseau à Google Fonts a été retirée du build au profit d'une pile système.
 
-4. **Documentation rewrite**
-   - `CLAUDE.md` rewritten as a Quick Reference (~284 -> ~101 lines) covering project overview, build/run, project structure, commands, testing, working rules, required artifacts, and Definition of Done.
-   - New `docs/ARCHITECTURE.md` -- system overview, layer diagram (storefront -> client -> API -> core plugin -> Medusa + DB), package responsibilities.
-   - New `docs/PRODUCT.md` -- product description for three audiences (marketplace operators, sellers/vendors, developers/AI agents) plus full feature list (multi-vendor sellers, commissions, payouts, order splitting, etc.).
-   - New `packages/core/ARCHITECTURE.md` -- core plugin internals.
+### Cameroun, environnement et déploiement
 
-5. **Repo artifacts for agent continuity**
-   - Created `claude-progress.md` and this `session-handoff.md`.
+- `apps/storefront/.env.template` et `apps/api/.env.template` documentent les variables requises sans valeur secrète, avec les valeurs AKAMBA/Cameroun/XAF et les options Apacheur, Babana, Capacitor et deep links.
+- `apps/api/medusa-config.ts` exige les secrets JWT/cookie en production et n'active Babana que si la configuration complète est présente.
+- `vercel.json` cible uniquement `apps/storefront` et utilise l'installation Bun figée.
 
-### What Remains
+### Seed idempotent
 
-- **Run end-to-end verification on the uncommitted refactor.** Lint passes (0 errors); build + tests still pending:
-  - `bun install` to refresh the lockfile cleanly.
-  - Triage the **1190 oxlint warnings** -- decide bulk-fix via `bunx oxlint --fix` vs. silencing categories in `.oxlintrc.json`.
-  - `bun run build` -- confirm the `turbo.json` output-path change does not break package caching or downstream consumers.
-  - `bun run test:integration:http -- <pattern>` on at least one suite (e.g. `product`) to confirm the meilisearch test removal did not leave dangling Jest references or middleware imports.
+- Le seed réutilise ou crée la région Cameroun en XAF, la taxe CM, les devises du store, la clé publiable, les vendeurs, membres, emplacements de stock, liens de canal de vente, zones/services de fulfillment, options de livraison, produits et offres.
+- Il n'efface ni ne remplace les données déjà présentes. Les produits et offres sont détectés respectivement par handle et SKU.
+- Les adresses de démonstration sont camerounaises, les tarifs utilisent XAF et le mot de passe vendeur provient de `SEED_SELLER_PASSWORD`.
 
-- **Docs index check**: confirm `apps/docs/docs.json` (or equivalent Mintlify nav) no longer references the three deleted seller/subscriptions markdown files.
+### Apacheur et Babana
 
-- **Commit strategy**: split into two commits when verification passes
-  - `chore(repo): migrate from eslint to oxlint and drop unused tooling`
-  - `docs: add ARCHITECTURE, PRODUCT, and core/ARCHITECTURE references`
+- `packages/types/src/apacheur` ajoute un contrat de négociation versionné dans `OfferDTO.metadata.akamba_apacheur`, avec gardes et fonctions de fusion. Il réutilise donc le modèle d'offre Mercur sans table ni migration parallèle.
+- `packages/types/src/babana` définit les contrats de livraison à partir des DTO Medusa.
+- `apps/api/src/providers/babana-fulfillment` fournit un provider Medusa standard/express, CM uniquement, avec tarifs plats. Aucune écriture vers un service externe n'est effectuée avant validation du contrat Babana.
 
-### Decisions Made
+### Mobile, deep links et OAuth
 
-- **oxlint over ESLint** -- prioritizing speed of `bun run lint` in CI; accepting that some custom ESLint rules will not be ported. New baseline is "oxlint clean", not "ESLint clean".
-- **`dev` depends on `^build`** -- accepts a slower first `bun run dev` in exchange for upstream packages being available to Vite at runtime. Required for the dashboard-sdk dedupe fix from canary.5 to take effect for consumers running `dev` from the monorepo root.
-- **`turbo.json` outputs broadened** -- `dist/**` + `.medusa/**` covers both standard TypeScript builds and Medusa's generated artifacts; `!**/cache/**` keeps Turbo from caching its own cache.
-- **Old seller/subscription markdown removed, not migrated** -- they were stale enough that updating in place was worse than rewriting. The new `docs/PRODUCT.md` covers the same audience needs.
-- **CLAUDE.md rewritten as quick-reference, not narrative** -- past version mixed CLI usage docs (better suited to `apps/docs`) with agent guidance. Quick-reference format makes the agent's mandatory startup workflow explicit.
+- Capacitor 8 est installé et configuré avec `cm.akamba.app`, les projets iOS/Android ont été générés et synchronisés.
+- Le shell natif charge l'URL Vercel fournie par `CAPACITOR_SERVER_URL`, ce qui évite de convertir le Storefront Next serveur en export statique.
+- Le schéma `akamba://` est déclaré sur iOS et Android.
+- Le provider mobile traite les ouvertures à froid/chaud, valide les hôtes autorisés, ferme le navigateur OAuth et route vers le Storefront.
+- Les helpers pour ouvrir OAuth dans le navigateur système et construire le callback mobile sont prêts.
 
-### Files Modified
+## Vérifications
 
-#### Modified
-- `CLAUDE.md` -- rewritten as quick reference for Claude Code agents.
-- `package.json` -- switched lint to `oxlint`; added oxlint dependency; dropped `format` + `check-types` scripts.
-- `turbo.json` -- build outputs and dev dependency change.
-- `bun.lock` -- regenerated.
-- `apps/admin-test/package.json` -- lint script now `oxlint`.
-- `apps/vendor/package.json` -- bumped to canary.5 alignment.
-- `packages/admin/package.json` -- lint script now `oxlint --max-warnings 0`.
-- `packages/dashboard-sdk/package.json` -- canary.5 alignment.
-- `packages/vendor/package.json` -- canary.5 alignment.
-- `integration-tests/package.json` -- removed `test:integration:meilisearch` script.
+- `bun run --cwd apps/storefront test:unit` : 7 tests middleware et deep links réussis.
+- `bun run lint` : réussi.
+- `bun run --cwd packages/types build` : réussi.
+- `bun run --cwd apps/storefront build` : réussi.
+- `bun run --cwd apps/storefront cap:sync` : iOS et Android synchronisés.
+- `plutil -lint apps/storefront/ios/App/App/Info.plist` : valide.
+- `NODE_OPTIONS=--max-old-space-size=8192 bunx turbo run build --concurrency=1` : 12 tâches sur 12 réussies.
+- `git diff --check` : réussi.
+- Le `tsc` API global reste rouge uniquement sur des scripts utilitaires préexistants (`seed-seller-order`, `probe-shared-priceset`, réservations et reviews). Aucun diagnostic ne concerne `seed.ts`, le provider Babana ou les nouveaux contrats.
 
-#### Added
-- `.oxlintrc.json` -- oxlint configuration.
-- `docs/ARCHITECTURE.md` -- system architecture doc.
-- `docs/PRODUCT.md` -- product description doc.
-- `packages/core/ARCHITECTURE.md` -- core plugin internals.
-- `claude-progress.md` -- session log + verified state.
-- `session-handoff.md` -- this file.
+## Configuration externe restante
 
-#### Deleted
-- `AGENTS.md`
-- `docs/seller.md`
-- `docs/seller-members.md`
-- `docs/subscriptions.md`
-- `tools/template-sync/check.ts`
-- `tools/template-sync/config.ts`
-- `integration-tests/src/api/admin/meilisearch/route.ts`
-- `integration-tests/src/api/store/meilisearch/products/search/route.ts`
-- `integration-tests/src/api/middlewares.ts`
+- Choisir et configurer l'URL Vercel de production dans `NEXT_PUBLIC_BASE_URL`, `CAPACITOR_SERVER_URL` et `NEXT_PUBLIC_DEEP_LINK_HOSTS`.
+- Fournir l'Apple Team ID et activer Associated Domains pour signer/valider les Universal Links iOS.
+- Fournir l'empreinte SHA-256 du certificat Android pour `assetlinks.json` et ajouter le domaine HTTPS au filtre d'intent lorsque le domaine final est connu.
+- Choisir le fournisseur OAuth et enregistrer `akamba://auth/callback` ainsi que le callback HTTPS auprès de ce fournisseur.
+- Valider le contrat/API Babana avant d'activer `BABANA_FULFILLMENT_ENABLED=true` et de fournir sa clé.
+- Définir `SEED_SELLER_PASSWORD` et exécuter le seed uniquement contre la base cible explicitement choisie.
 
-Diff summary: 19 files changed, +138 / -1040 (plus 4 new untracked files).
+## Fichiers principaux
 
-### Recent Committed Sessions (for context)
-
-- **2026-05-11 -- PR #919 (`a15dc78f`)**: i18n coverage + onboarding extensibility. Expanded vendor `pl.json` and `en.json` (+425 / +39 lines). Added `useOnboarding` hook and new dashboard-sdk types/plugin hook for extensible onboarding. Tightened seller validators. 69 files, +1673 / -277.
-- **2026-05-12 -- canary.1 -> canary.5 fix train**:
-  - `b77c9ce9` fix(vendor): improve PL translations for order statuses/columns
-  - `e886d5bd` fix(vendor): correct thumbnail size in order summary
-  - `89370c1f` fix(admin): improve PL translations for order statuses/columns
-  - `c4912156` fix(vendor): translate commission label in order summary
-  - `3c4e9ac5` fix(dashboard-sdk): dedupe `i18next` and `react` in vite resolve
-
-### Blockers
-
-None hard-blocking. Soft risk: oxlint may surface new errors on first run, which could turn this from a clean refactor into a wider follow-up. Triage on first lint run will determine scope.
-
-### Known Risks
-
-- **Lint coverage gap** -- oxlint does not implement every ESLint rule; some violations previously caught may silently pass. Spot-check against the prior `eslint --max-warnings 0` baseline if a regression appears.
-- **Turbo cache invalidation** -- first build after merge will cold-start every package. Expect a slow first CI run.
-- **`dev` depends on `^build`** -- changes `bun run dev` startup cost; if DX feedback is negative, revisit.
-- **Docs nav drift** -- deleted three markdown files without yet updating the Mintlify navigation. If `apps/docs` references them, the docs build will fail.
-
-### Next Steps
-
-1. From repo root: `bun install` -- confirms the lockfile regenerates clean without ESLint left in the graph.
-2. `bun run lint` -- triage oxlint findings. Fix trivial issues in place; for rules with no clean fix, decide whether to disable in `.oxlintrc.json` (with reason) or fix the underlying code.
-3. `bun run build` -- confirm all packages build with the new `turbo.json` output paths.
-4. `bun run test:integration:http -- product` (or any one suite) -- confirm Jest still resolves after meilisearch file removal.
-5. Grep `apps/docs` for references to `seller.md`, `seller-members.md`, `subscriptions.md`; remove or redirect.
-6. Commit in two logical units: `chore(repo): migrate from eslint to oxlint and drop unused tooling` and `docs: add ARCHITECTURE, PRODUCT, and core/ARCHITECTURE references`.
-7. Update `claude-progress.md` Session 3 with the verification evidence and mark next-best-action as "merge / open PR".
+- Storefront : `apps/storefront/src/config/brand.ts`, `src/middleware.ts`, `src/lib/middleware-utils.ts`, `src/lib/mobile.ts`, `src/components/providers/MobileDeepLink`, `src/app/manifest.ts`, `src/app/.well-known`, composants et métadonnées de marque.
+- Mobile : `apps/storefront/capacitor.config.ts`, `capacitor-shell`, `ios`, `android`.
+- API : `apps/api/medusa-config.ts`, `apps/api/src/scripts/seed.ts`, `apps/api/src/providers/babana-fulfillment`.
+- Contrats : `packages/types/src/apacheur`, `packages/types/src/babana`, `packages/types/src/index.ts`.
+- Déploiement/configuration : `apps/storefront/.env.template`, `apps/api/.env.template`, `vercel.json`, `bun.lock`.

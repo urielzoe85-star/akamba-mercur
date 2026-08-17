@@ -16,6 +16,7 @@ import {
   getStorefrontLocales,
   toHreflang,
 } from "@/lib/helpers/hreflang"
+import { BRAND, getSiteUrl } from "@/config/brand"
 
 export async function generateMetadata({
   params,
@@ -27,7 +28,7 @@ export async function generateMetadata({
   const headersList = await headers()
   const host = headersList.get("host")
   const protocol = headersList.get("x-forwarded-proto") || "https"
-  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || `${protocol}://${host}`
+  const baseUrl = getSiteUrl(`${protocol}://${host}`)
 
   let locales: string[] = []
   try {
@@ -43,10 +44,9 @@ export async function generateMetadata({
     locales,
   })
 
-  const title = "Home"
-  const description =
-    "Welcome to Mercur B2C Demo! Create a modern marketplace that you own and customize in every aspect with high-performance, fully customizable storefront."
-  const ogImage = "/B2C_Storefront_Open_Graph.png"
+  const title = "Accueil"
+  const description = BRAND.description
+  const ogImage = BRAND.openGraphImage
 
   return {
     title,
@@ -67,24 +67,17 @@ export async function generateMetadata({
       languages,
     },
     openGraph: {
-      title: `${title} | ${
-        process.env.NEXT_PUBLIC_SITE_NAME ||
-        "Mercur B2C Demo - Marketplace Storefront"
-      }`,
+      title: `${title} | ${BRAND.name}`,
       description,
       url: canonical,
-      siteName:
-        process.env.NEXT_PUBLIC_SITE_NAME ||
-        "Mercur B2C Demo - Marketplace Storefront",
+      siteName: BRAND.name,
       type: "website",
       images: [
         {
           url: ogImage.startsWith("http") ? ogImage : `${baseUrl}${ogImage}`,
           width: 1200,
           height: 630,
-          alt:
-            process.env.NEXT_PUBLIC_SITE_NAME ||
-            "Mercur B2C Demo - Marketplace Storefront",
+          alt: BRAND.name,
         },
       ],
     },
@@ -107,11 +100,8 @@ export default async function Home({
   const headersList = await headers()
   const host = headersList.get("host")
   const protocol = headersList.get("x-forwarded-proto") || "https"
-  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || `${protocol}://${host}`
-
-  const siteName =
-    process.env.NEXT_PUBLIC_SITE_NAME ||
-    "Mercur B2C Demo - Marketplace Storefront"
+  const baseUrl = getSiteUrl(`${protocol}://${host}`)
+  const siteName = BRAND.name
 
   return (
     <main className="flex flex-col gap-8 row-start-2 items-center sm:items-start text-primary">
@@ -151,23 +141,23 @@ export default async function Home({
 
       <Hero
         image="/images/hero/Image.jpg"
-        heading="Snag your style in a flash"
-        paragraph="Buy, sell, and discover pre-loved gems from the trendiest brands."
+        heading="Le Cameroun achète et vend ici"
+        paragraph="Découvrez des produits locaux, comparez les offres et faites-vous livrer en toute confiance."
         buttons={[
-          { label: "Buy now", path: "/categories" },
+          { label: "Acheter", path: "/categories" },
           {
-            label: "Sell now",
+            label: "Vendre",
             path:
               process.env.NEXT_PUBLIC_VENDOR_URL ||
-              "https://vendor.mercurjs.com",
+              "/register",
           },
         ]}
       />
       <div className="px-4 lg:px-8 w-full">
-        <HomeProductSection heading="trending listings" locale={locale} home />
+        <HomeProductSection heading="OFFRES DU MOMENT" locale={locale} home />
       </div>
       <div className="px-4 lg:px-8 w-full">
-        <HomeCategories heading="SHOP BY CATEGORY" />
+        <HomeCategories heading="ACHETER PAR CATÉGORIE" />
       </div>
       <BannerSection />
       <ShopByStyleSection />

@@ -18,6 +18,10 @@ export * from "./payout"
 // Offer types
 export * from "./offer"
 
+// AKAMBA verticals built on Mercur / Medusa primitives
+export * from "./apacheur"
+export * from "./babana"
+
 // Promotion cost types
 export * from "./promotion-cost"
 

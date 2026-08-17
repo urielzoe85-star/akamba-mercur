@@ -10,6 +10,7 @@ import { listCategories } from "@/lib/data/categories"
 import { listRegions } from "@/lib/data/regions"
 import { retrieveCustomer } from "@/lib/data/customer"
 import { ParentCategoryLinks } from "@/components/molecules/ParentCategoryLinks/ParentCategoryLinks"
+import { BRAND } from "@/config/brand"
 
 export const Header = async ({ locale } : {
   locale: string
@@ -39,10 +40,10 @@ export const Header = async ({ locale } : {
         <div className="flex lg:justify-center lg:w-1/3 items-center pl-4 lg:pl-0">
           <LocalizedClientLink href="/" className="text-2xl font-bold" data-testid="header-logo-link">
             <Image
-              src="/Logo.svg"
+              src={BRAND.logo}
               width={126}
               height={40}
-              alt="Logo"
+              alt={`${BRAND.name} — Accueil`}
               priority
             />
           </LocalizedClientLink>

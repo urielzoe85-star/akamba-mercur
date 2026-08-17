@@ -56,7 +56,7 @@ const updateStoreCurrencies = createWorkflow(
                 currency_code: currency.currency_code,
                 is_default: currency.is_default ?? false,
               };
-            }
+            },
           ),
         },
       };
@@ -65,7 +65,7 @@ const updateStoreCurrencies = createWorkflow(
     const stores = updateStoresStep(normalizedInput);
 
     return new WorkflowResponse(stores);
-  }
+  },
 );
 
 export default async function seedDemoData({ container }: ExecArgs) {
@@ -75,17 +75,20 @@ export default async function seedDemoData({ container }: ExecArgs) {
   const salesChannelModuleService = container.resolve(Modules.SALES_CHANNEL);
   const storeModuleService = container.resolve(Modules.STORE);
 
-  const countries = ["gb", "de", "dk", "se", "fr", "es", "it"];
+  const countries = ["cm"];
 
   logger.info("Seeding store data...");
   const [store] = await storeModuleService.listStores();
+  if (!store) {
+    throw new Error("No Medusa store exists. Run the Medusa migrations first.");
+  }
   let defaultSalesChannel = await salesChannelModuleService.listSalesChannels({
     name: "Default Sales Channel",
   });
 
   if (!defaultSalesChannel.length) {
     const { result: salesChannelResult } = await createSalesChannelsWorkflow(
-      container
+      container,
     ).run({
       input: {
         salesChannelsData: [
@@ -98,18 +101,27 @@ export default async function seedDemoData({ container }: ExecArgs) {
     defaultSalesChannel = salesChannelResult;
   }
 
+  const {
+    data: [storeCurrencyState],
+  } = await query.graph({
+    entity: "store",
+    fields: ["supported_currencies.currency_code"],
+    filters: { id: store.id },
+  });
+  const currencyCodes = new Set<string>(
+    (storeCurrencyState?.supported_currencies || []).flatMap((currency) =>
+      currency?.currency_code ? [currency.currency_code.toLowerCase()] : [],
+    ),
+  );
+  currencyCodes.add("xaf");
+
   await updateStoreCurrencies(container).run({
     input: {
       store_id: store.id,
-      supported_currencies: [
-        {
-          currency_code: "eur",
-          is_default: true,
-        },
-        {
-          currency_code: "usd",
-        },
-      ],
+      supported_currencies: Array.from(currencyCodes).map((currency_code) => ({
+        currency_code,
+        is_default: currency_code === "xaf",
+      })),
     },
   });
 
@@ -117,7 +129,7 @@ export default async function seedDemoData({ container }: ExecArgs) {
     input: {
       selector: { id: store.id },
       update: {
-        name: 'Mercur Marketplace',
+        name: "AKAMBA",
         default_sales_channel_id: defaultSalesChannel[0].id,
       },
     },
@@ -125,9 +137,12 @@ export default async function seedDemoData({ container }: ExecArgs) {
   logger.info("Seeding region data...");
   const regionModuleService = container.resolve(Modules.REGION);
 
-  const existingRegions = await regionModuleService.listRegions({}, {
-    relations: ["countries"],
-  });
+  const existingRegions = await regionModuleService.listRegions(
+    {},
+    {
+      relations: ["countries"],
+    },
+  );
 
   const assignedCountries = new Set<string>();
   for (const r of existingRegions) {
@@ -136,51 +151,47 @@ export default async function seedDemoData({ container }: ExecArgs) {
     }
   }
 
-  const unassignedCountries = countries.filter(c => !assignedCountries.has(c));
+  const unassignedCountries = countries.filter(
+    (c) => !assignedCountries.has(c),
+  );
 
   let region;
   if (unassignedCountries.length === 0) {
-    region = existingRegions.find(r =>
-      r.countries?.some(c => countries.includes(c.iso_2))
-    ) || existingRegions[0];
-    logger.info("Countries already assigned to a region, skipping region creation.");
-  } else if (unassignedCountries.length < countries.length) {
-    logger.info(`Some countries already assigned, creating region with: ${unassignedCountries.join(", ")}`);
-    const { result: regionResult } = await createRegionsWorkflow(container).run({
-      input: {
-        regions: [
-          {
-            name: "Europe",
-            currency_code: "eur",
-            countries: unassignedCountries,
-            payment_providers: ["pp_system_default"],
-          },
-        ],
-      },
-    });
-    region = regionResult[0];
+    region = existingRegions.find((existingRegion) =>
+      existingRegion.countries?.some((country) => country.iso_2 === "cm"),
+    );
+    logger.info("Cameroon is already assigned to a region, skipping creation.");
   } else {
-    const { result: regionResult } = await createRegionsWorkflow(container).run({
-      input: {
-        regions: [
-          {
-            name: "Europe",
-            currency_code: "eur",
-            countries,
-            payment_providers: ["pp_system_default"],
-          },
-        ],
+    const { result: regionResult } = await createRegionsWorkflow(container).run(
+      {
+        input: {
+          regions: [
+            {
+              name: "Cameroun",
+              currency_code: "xaf",
+              countries,
+              payment_providers: ["pp_system_default"],
+            },
+          ],
+        },
       },
-    });
+    );
     region = regionResult[0];
+  }
+  if (!region) {
+    throw new Error("Unable to resolve the Medusa region for Cameroon.");
   }
   logger.info("Finished seeding regions.");
 
   logger.info("Seeding tax regions...");
   const taxModuleService = container.resolve(Modules.TAX);
   const existingTaxRegions = await taxModuleService.listTaxRegions();
-  const existingCountryCodes = new Set(existingTaxRegions.map((tr) => tr.country_code));
-  const countriesToCreate = countries.filter((c) => !existingCountryCodes.has(c));
+  const existingCountryCodes = new Set(
+    existingTaxRegions.map((tr) => tr.country_code),
+  );
+  const countriesToCreate = countries.filter(
+    (c) => !existingCountryCodes.has(c),
+  );
 
   if (countriesToCreate.length > 0) {
     await createTaxRegionsWorkflow(container).run({
@@ -213,7 +224,7 @@ export default async function seedDemoData({ container }: ExecArgs) {
       input: {
         api_keys: [
           {
-            title: "Webshop",
+            title: "AKAMBA Storefront",
             type: "publishable",
             created_by: "",
           },
@@ -221,7 +232,7 @@ export default async function seedDemoData({ container }: ExecArgs) {
       },
     });
 
-    publishableApiKey = publishableApiKeyResult
+    publishableApiKey = publishableApiKeyResult;
   }
 
   try {
@@ -344,13 +355,13 @@ export default async function seedDemoData({ container }: ExecArgs) {
         product_id: null,
       },
     });
-    return new Map(
-      (data as SeededAttribute[]).map((a) => [a.handle, a])
-    );
+    return new Map((data as SeededAttribute[]).map((a) => [a.handle, a]));
   };
 
   let attrByHandle = await loadAttributes();
-  const missingAttrs = ATTRIBUTE_DEFS.filter((a) => !attrByHandle.has(a.handle));
+  const missingAttrs = ATTRIBUTE_DEFS.filter(
+    (a) => !attrByHandle.has(a.handle),
+  );
 
   if (missingAttrs.length) {
     await createProductAttributesWorkflow(container).run({
@@ -431,15 +442,54 @@ export default async function seedDemoData({ container }: ExecArgs) {
 
   logger.info("Finished seeding global product attributes.");
 
-  const SELLER_PASSWORD = "supersecret";
+  const SELLER_PASSWORD = process.env.SEED_SELLER_PASSWORD;
   const SELLER_CONFIGS = [
-    { name: "Sole Society", email: "seller@mercur.dev", first_name: "Demo", last_name: "Seller", city: "Berlin", country_code: "DE", address_1: "Alexanderplatz 1" },
-    { name: "Kickz Corner", email: "kickz@mercur.dev", first_name: "Kai", last_name: "Corner", city: "Amsterdam", country_code: "NL", address_1: "Damrak 12" },
-    { name: "Trailhead Outfitters", email: "trailhead@mercur.dev", first_name: "Tara", last_name: "Head", city: "Munich", country_code: "DE", address_1: "Marienplatz 3" },
-    { name: "Urban Step", email: "urbanstep@mercur.dev", first_name: "Uma", last_name: "Step", city: "Paris", country_code: "FR", address_1: "Rue de Rivoli 45" },
-    { name: "Peak & Pace", email: "peakpace@mercur.dev", first_name: "Piotr", last_name: "Pace", city: "Madrid", country_code: "ES", address_1: "Gran Via 8" },
+    {
+      name: "Sole Society",
+      email: "seller@mercur.dev",
+      first_name: "Demo",
+      last_name: "Seller",
+      city: "Douala",
+      country_code: "CM",
+      address_1: "Akwa",
+    },
+    {
+      name: "Kickz Corner",
+      email: "kickz@mercur.dev",
+      first_name: "Kai",
+      last_name: "Corner",
+      city: "Yaoundé",
+      country_code: "CM",
+      address_1: "Bastos",
+    },
+    {
+      name: "Trailhead Outfitters",
+      email: "trailhead@mercur.dev",
+      first_name: "Tara",
+      last_name: "Head",
+      city: "Bafoussam",
+      country_code: "CM",
+      address_1: "Tamja",
+    },
+    {
+      name: "Urban Step",
+      email: "urbanstep@mercur.dev",
+      first_name: "Uma",
+      last_name: "Step",
+      city: "Douala",
+      country_code: "CM",
+      address_1: "Bonapriso",
+    },
+    {
+      name: "Peak & Pace",
+      email: "peakpace@mercur.dev",
+      first_name: "Piotr",
+      last_name: "Pace",
+      city: "Garoua",
+      country_code: "CM",
+      address_1: "Plateau",
+    },
   ];
-  const PRIMARY_SELLER_EMAIL = SELLER_CONFIGS[0].email;
 
   // DiceBear renders a crisp initials avatar per seller name; Picsum returns a
   // deterministic photo for the same seed, so re-seeding is stable.
@@ -447,20 +497,6 @@ export default async function seedDemoData({ container }: ExecArgs) {
     `https://api.dicebear.com/9.x/initials/svg?seed=${encodeURIComponent(name)}`;
   const sellerBanner = (name: string) =>
     `https://picsum.photos/seed/${toHandle(name)}/1200/320`;
-
-  const { data: existingSellers } = await query.graph({
-    entity: "seller",
-    fields: ["id"],
-    filters: { email: PRIMARY_SELLER_EMAIL },
-  });
-
-  if (existingSellers[0]) {
-    logger.info(
-      "Demo sellers already exist, skipping seller, product and offer seeding."
-    );
-    logger.info("Finished seeding.");
-    return;
-  }
 
   const authModuleService = container.resolve(Modules.AUTH);
 
@@ -472,7 +508,7 @@ export default async function seedDemoData({ container }: ExecArgs) {
   const { data: existingProfiles } = await query.graph({
     entity: "shipping_profile",
     fields: ["id"],
-    filters: { name: "Marketplace Shipping" },
+    filters: { name: "AKAMBA Marketplace Shipping" },
   });
   if (existingProfiles[0]) {
     sharedShippingProfileId = existingProfiles[0].id as string;
@@ -480,7 +516,9 @@ export default async function seedDemoData({ container }: ExecArgs) {
     const {
       result: [createdProfile],
     } = await createShippingProfilesWorkflow(container).run({
-      input: { data: [{ name: "Marketplace Shipping", type: "default" }] },
+      input: {
+        data: [{ name: "AKAMBA Marketplace Shipping", type: "default" }],
+      },
     });
     sharedShippingProfileId = createdProfile.id;
   }
@@ -497,83 +535,160 @@ export default async function seedDemoData({ container }: ExecArgs) {
   for (const [index, sellerConfig] of SELLER_CONFIGS.entries()) {
     logger.info(`Seeding seller "${sellerConfig.name}"...`);
 
-    let authIdentityId: string;
-    const registerResponse = await authModuleService.register("emailpass", {
-      body: { email: sellerConfig.email, password: SELLER_PASSWORD },
+    const {
+      data: [existingSeller],
+    } = await query.graph({
+      entity: "seller",
+      fields: ["id", "name"],
+      filters: { email: sellerConfig.email },
     });
 
-    if (registerResponse.success && registerResponse.authIdentity) {
-      authIdentityId = registerResponse.authIdentity.id;
+    let seller: { id: string; name?: string };
+    if (existingSeller) {
+      seller = existingSeller as { id: string; name?: string };
+      logger.info(`Seller "${sellerConfig.name}" already exists, reusing it.`);
     } else {
-      const [providerIdentity] =
-        await authModuleService.listProviderIdentities({
-          entity_id: sellerConfig.email,
-          provider: "emailpass",
-        });
-      authIdentityId = providerIdentity.auth_identity_id!;
+      if (!SELLER_PASSWORD) {
+        throw new Error(
+          "SEED_SELLER_PASSWORD must be configured before creating demo sellers.",
+        );
+      }
+
+      let authIdentityId: string;
+      const registerResponse = await authModuleService.register("emailpass", {
+        body: { email: sellerConfig.email, password: SELLER_PASSWORD },
+      });
+
+      if (registerResponse.success && registerResponse.authIdentity) {
+        authIdentityId = registerResponse.authIdentity.id;
+      } else {
+        const [providerIdentity] =
+          await authModuleService.listProviderIdentities({
+            entity_id: sellerConfig.email,
+            provider: "emailpass",
+          });
+        if (!providerIdentity?.auth_identity_id) {
+          throw new Error(
+            `Unable to resolve an auth identity for ${sellerConfig.email}`,
+          );
+        }
+        authIdentityId = providerIdentity.auth_identity_id;
+      }
+
+      const { result: createdSeller } = await createSellerAccountWorkflow(
+        container,
+      ).run({
+        input: {
+          auth_identity_id: authIdentityId,
+          member_email: sellerConfig.email,
+          first_name: sellerConfig.first_name,
+          last_name: sellerConfig.last_name,
+          seller: {
+            name: sellerConfig.name,
+            email: sellerConfig.email,
+            currency_code: "xaf",
+            description: `${sellerConfig.name} — vendeur de démonstration sur AKAMBA.`,
+            logo: sellerLogo(sellerConfig.name),
+            banner: sellerBanner(sellerConfig.name),
+          },
+        },
+      });
+      seller = createdSeller;
+
+      await approveSellerWorkflow(container).run({
+        input: { seller_id: seller.id },
+      });
     }
 
-    const { result: seller } = await createSellerAccountWorkflow(
-      container
-    ).run({
-      input: {
-        auth_identity_id: authIdentityId,
-        member_email: sellerConfig.email,
-        first_name: sellerConfig.first_name,
-        last_name: sellerConfig.last_name,
-        seller: {
-          name: sellerConfig.name,
-          email: sellerConfig.email,
-          currency_code: "eur",
-          description: `${sellerConfig.name} — a demo marketplace footwear seller.`,
-          logo: sellerLogo(sellerConfig.name),
-          banner: sellerBanner(sellerConfig.name),
-        },
-      },
-    });
-
-    await approveSellerWorkflow(container).run({
-      input: { seller_id: seller.id },
-    });
-
-  const { data: members } = await query.graph({
+    const { data: members } = await query.graph({
       entity: "member",
       fields: ["id"],
       filters: { email: sellerConfig.email },
     });
-    const memberId = members[0].id;
+    const memberId = members[0]?.id;
+    if (!memberId) {
+      throw new Error(`No Mercur member found for ${sellerConfig.email}`);
+    }
 
-    const { result: stockLocations } =
-      await createSellerStockLocationsWorkflow(container).run({
-        input: {
-          seller_id: seller.id,
-          locations: [
-            {
-              name: `${sellerConfig.name} Warehouse`,
-              address: {
-                city: sellerConfig.city,
-                country_code: sellerConfig.country_code,
-                address_1: sellerConfig.address_1,
+    const {
+      data: [sellerStockLocationLink],
+    } = await query.graph({
+      entity: "stock_location_seller",
+      fields: ["stock_location_id"],
+      filters: { seller_id: seller.id },
+    });
+
+    type SeedStockLocation = {
+      id: string;
+      sales_channels?: { id: string }[];
+      fulfillment_sets?: {
+        id: string;
+        service_zones?: {
+          id: string;
+          name: string;
+          shipping_options?: { id: string }[];
+        }[];
+      }[];
+    };
+
+    let stockLocation: SeedStockLocation | undefined;
+    if (sellerStockLocationLink?.stock_location_id) {
+      const {
+        data: [existingStockLocation],
+      } = await query.graph({
+        entity: "stock_location",
+        fields: [
+          "id",
+          "sales_channels.id",
+          "fulfillment_sets.id",
+          "fulfillment_sets.service_zones.id",
+          "fulfillment_sets.service_zones.name",
+          "fulfillment_sets.service_zones.shipping_options.id",
+        ],
+        filters: { id: sellerStockLocationLink.stock_location_id },
+      });
+      stockLocation = existingStockLocation as SeedStockLocation | undefined;
+    }
+
+    if (!stockLocation) {
+      const { result: stockLocations } =
+        await createSellerStockLocationsWorkflow(container).run({
+          input: {
+            seller_id: seller.id,
+            locations: [
+              {
+                name: `${sellerConfig.name} Warehouse`,
+                address: {
+                  city: sellerConfig.city,
+                  country_code: sellerConfig.country_code,
+                  address_1: sellerConfig.address_1,
+                },
               },
-            },
-          ],
+            ],
+          },
+        });
+      stockLocation = stockLocations[0] as SeedStockLocation;
+
+      await link.create({
+        [Modules.STOCK_LOCATION]: { stock_location_id: stockLocation.id },
+        [Modules.FULFILLMENT]: { fulfillment_provider_id: "manual_manual" },
+      });
+    }
+
+    if (
+      !stockLocation.sales_channels?.some(
+        (salesChannel) => salesChannel.id === defaultSalesChannel[0].id,
+      )
+    ) {
+      await linkSalesChannelsToStockLocationWorkflow(container).run({
+        input: {
+          id: stockLocation.id,
+          add: [defaultSalesChannel[0].id],
         },
       });
-    const stockLocation = stockLocations[0];
+    }
 
-    await link.create({
-      [Modules.STOCK_LOCATION]: { stock_location_id: stockLocation.id },
-      [Modules.FULFILLMENT]: { fulfillment_provider_id: "manual_manual" },
-    });
-
-    await linkSalesChannelsToStockLocationWorkflow(container).run({
-      input: {
-        id: stockLocation.id,
-        add: [defaultSalesChannel[0].id],
-      },
-    });
-
-    if (index === 0) {
+    if (index === 0 && !store.default_location_id) {
       await updateStoresWorkflow(container).run({
         input: {
           selector: { id: store.id },
@@ -584,99 +699,128 @@ export default async function seedDemoData({ container }: ExecArgs) {
       });
     }
 
-    await createLocationFulfillmentSetWorkflow(container).run({
-      input: {
-        location_id: stockLocation.id,
-        fulfillment_set_data: {
-          name: `${sellerConfig.name} delivery`,
-          type: "shipping",
+    let fulfillmentSetId = stockLocation.fulfillment_sets?.[0]?.id;
+    if (!fulfillmentSetId) {
+      await createLocationFulfillmentSetWorkflow(container).run({
+        input: {
+          location_id: stockLocation.id,
+          fulfillment_set_data: {
+            name: `${sellerConfig.name} delivery`,
+            type: "shipping",
+          },
         },
-      },
-    });
+      });
 
-    const {
-      data: [locationWithSet],
-    } = await query.graph({
-      entity: "stock_location",
-      fields: ["id", "fulfillment_sets.id"],
-      filters: { id: stockLocation.id },
-    });
-    const fulfillmentSetId = locationWithSet?.fulfillment_sets?.[0]?.id;
+      const {
+        data: [locationWithSet],
+      } = await query.graph({
+        entity: "stock_location",
+        fields: ["id", "fulfillment_sets.id"],
+        filters: { id: stockLocation.id },
+      });
+      fulfillmentSetId = locationWithSet?.fulfillment_sets?.[0]?.id;
+    }
     if (!fulfillmentSetId) {
       throw new Error(
-        `Fulfillment set was not created for seller "${sellerConfig.name}"`
+        `Fulfillment set was not created for seller "${sellerConfig.name}"`,
       );
     }
 
-    const { result: serviceZones } = await createServiceZonesWorkflow(
-      container
-    ).run({
-      input: {
-        data: [
-          {
-            fulfillment_set_id: fulfillmentSetId,
-            name: `${sellerConfig.name} Europe`,
-            geo_zones: countries.map((country_code) => ({
-              country_code,
-              type: "country" as const,
-            })),
-          },
-        ],
-      },
-    });
-    const serviceZoneId = serviceZones[0].id;
+    const cameroonZoneName = `${sellerConfig.name} Cameroun`;
+    type SeedServiceZone = {
+      id: string;
+      name: string;
+      shipping_options?: { id: string }[];
+    };
+    let serviceZone: SeedServiceZone | undefined =
+      stockLocation.fulfillment_sets
+        ?.flatMap((set) => set.service_zones || [])
+        .find((zone) => zone.name === cameroonZoneName);
+
+    if (!serviceZone) {
+      const { result: serviceZones } = await createServiceZonesWorkflow(
+        container,
+      ).run({
+        input: {
+          data: [
+            {
+              fulfillment_set_id: fulfillmentSetId,
+              name: cameroonZoneName,
+              geo_zones: countries.map((country_code) => ({
+                country_code,
+                type: "country" as const,
+              })),
+            },
+          ],
+        },
+      });
+      serviceZone = serviceZones[0] as unknown as SeedServiceZone;
+    }
+    if (!serviceZone?.id) {
+      throw new Error(
+        `Cameroon service zone was not resolved for "${sellerConfig.name}"`,
+      );
+    }
 
     const shippingProfileId = sharedShippingProfileId;
 
-    await createSellerShippingOptionsWorkflow(container).run({
-      input: {
-        seller_id: seller.id,
-        shipping_options: [
-          {
-            name: "Standard Shipping",
-            price_type: "flat",
-            provider_id: "manual_manual",
-            service_zone_id: serviceZoneId,
-            shipping_profile_id: shippingProfileId,
-            type: {
-              label: "Standard",
-              description: "Ship in 2-3 days.",
-              code: "standard",
+    if (!serviceZone.shipping_options?.length) {
+      await createSellerShippingOptionsWorkflow(container).run({
+        input: {
+          seller_id: seller.id,
+          shipping_options: [
+            {
+              name: "Livraison standard",
+              price_type: "flat",
+              provider_id: "manual_manual",
+              service_zone_id: serviceZone.id,
+              shipping_profile_id: shippingProfileId,
+              type: {
+                label: "Standard",
+                description: "Livraison estimée sous 2 à 4 jours.",
+                code: "akamba-standard",
+              },
+              prices: [
+                { currency_code: "xaf", amount: 2500 },
+                { region_id: region.id, amount: 2500 },
+              ],
+              rules: [
+                {
+                  attribute: "enabled_in_store",
+                  value: "true",
+                  operator: "eq",
+                },
+                { attribute: "is_return", value: "false", operator: "eq" },
+              ],
             },
-            prices: [
-              { currency_code: "usd", amount: 10 },
-              { currency_code: "eur", amount: 10 },
-              { region_id: region.id, amount: 10 },
-            ],
-            rules: [
-              { attribute: "enabled_in_store", value: "true", operator: "eq" },
-              { attribute: "is_return", value: "false", operator: "eq" },
-            ],
-          },
-          {
-            name: "Express Shipping",
-            price_type: "flat",
-            provider_id: "manual_manual",
-            service_zone_id: serviceZoneId,
-            shipping_profile_id: shippingProfileId,
-            type: {
-              label: "Express",
-              description: "Ship in 24 hours.",
-              code: "express",
+            {
+              name: "Livraison express",
+              price_type: "flat",
+              provider_id: "manual_manual",
+              service_zone_id: serviceZone.id,
+              shipping_profile_id: shippingProfileId,
+              type: {
+                label: "Express",
+                description: "Livraison estimée sous 24 heures.",
+                code: "akamba-express",
+              },
+              prices: [
+                { currency_code: "xaf", amount: 5000 },
+                { region_id: region.id, amount: 5000 },
+              ],
+              rules: [
+                {
+                  attribute: "enabled_in_store",
+                  value: "true",
+                  operator: "eq",
+                },
+                { attribute: "is_return", value: "false", operator: "eq" },
+              ],
             },
-            prices: [
-              { currency_code: "usd", amount: 10 },
-              { currency_code: "eur", amount: 10 },
-              { region_id: region.id, amount: 10 },
-            ],
-            rules: [
-              { attribute: "enabled_in_store", value: "true", operator: "eq" },
-              { attribute: "is_return", value: "false", operator: "eq" },
-            ],
-          },
-        ],
-      },
-    });
+          ],
+        },
+      });
+    }
 
     sellers.push({
       id: seller.id,
@@ -736,21 +880,21 @@ export default async function seedDemoData({ container }: ExecArgs) {
             {
               id: sizeAttr.id,
               value_ids: FOOTWEAR_SIZES.map((size) =>
-                valueId(sizeAttr, size)
+                valueId(sizeAttr, size),
               ).filter((id): id is string => Boolean(id)),
             },
           ]
         : []),
       {
         id: colorAttr.id,
-        value_ids: [valueId(colorAttr, color)].filter(
-          (id): id is string => Boolean(id)
+        value_ids: [valueId(colorAttr, color)].filter((id): id is string =>
+          Boolean(id),
         ),
       },
       {
         id: conditionAttr.id,
         value_ids: [valueId(conditionAttr, condition)].filter(
-          (id): id is string => Boolean(id)
+          (id): id is string => Boolean(id),
         ),
       },
     ];
@@ -783,13 +927,34 @@ export default async function seedDemoData({ container }: ExecArgs) {
     };
   });
 
-  await createProductsWorkflow(container).run({
-    input: {
-      created_by: primarySeller.memberId,
-      products,
-    },
+  const desiredProductHandles = products
+    .map((product) => product.handle)
+    .filter((handle): handle is string => Boolean(handle));
+  const { data: existingProducts } = await query.graph({
+    entity: "product",
+    fields: ["id", "handle"],
+    filters: { handle: desiredProductHandles },
   });
-  logger.info(`Finished seeding ${products.length} products.`);
+  const existingProductHandles = new Set(
+    existingProducts.map((product) => product.handle),
+  );
+  const missingProducts = products.filter(
+    (product) => product.handle && !existingProductHandles.has(product.handle),
+  );
+
+  if (missingProducts.length) {
+    await createProductsWorkflow(container).run({
+      input: {
+        created_by: primarySeller.memberId,
+        products: missingProducts,
+      },
+    });
+  }
+  logger.info(
+    `Finished product seed: ${missingProducts.length} created, ${
+      products.length - missingProducts.length
+    } reused.`,
+  );
 
   logger.info("Creating randomized offers across sellers...");
 
@@ -806,15 +971,13 @@ export default async function seedDemoData({ container }: ExecArgs) {
     min + Math.floor(rand() * (max - min + 1));
 
   const priceByHandle = new Map(
-    products.map((product, index) => [product.handle, catalog[index].price])
+    products.map((product, index) => [product.handle, catalog[index].price]),
   );
   const { data: seededProducts } = await query.graph({
     entity: "product",
     fields: ["id", "handle", "variants.id", "variants.sku"],
     filters: {
-      handle: products
-        .map((product) => product.handle)
-        .filter((handle): handle is string => Boolean(handle)),
+      handle: desiredProductHandles,
     },
   });
 
@@ -838,6 +1001,7 @@ export default async function seedDemoData({ container }: ExecArgs) {
           const jitter = 1 + (rand() * 0.3 - 0.15); // ±15%
           const eur = Math.max(1, Math.round(basePrice * jitter));
           const usd = Math.round(eur * 1.08);
+          const xaf = Math.round(eur * 650);
           const sku = `OFFER-${seller.id.slice(-4)}-${variant.sku}-${o + 1}`;
           offers.push({
             seller_id: seller.id,
@@ -856,7 +1020,8 @@ export default async function seedDemoData({ container }: ExecArgs) {
                 ],
               },
             ],
-           prices: [
+            prices: [
+              { amount: xaf, currency_code: "xaf" },
               { amount: eur, currency_code: "eur" },
               { amount: usd, currency_code: "usd" },
             ],
@@ -866,9 +1031,26 @@ export default async function seedDemoData({ container }: ExecArgs) {
     }
   }
 
-  await createOffersWorkflow(container).run({ input: { offers } });
+  const offerSkus = offers.map((offer) => offer.sku);
+  const { data: existingOffers } = await query.graph({
+    entity: "offer",
+    fields: ["id", "sku"],
+    filters: { sku: offerSkus },
+  });
+  const existingOfferSkus = new Set(existingOffers.map((offer) => offer.sku));
+  const missingOffers = offers.filter(
+    (offer) => !existingOfferSkus.has(offer.sku),
+  );
+
+  if (missingOffers.length) {
+    await createOffersWorkflow(container).run({
+      input: { offers: missingOffers },
+    });
+  }
   logger.info(
-    `Finished creating ${offers.length} offers across ${sellers.length} sellers.`
+    `Finished offer seed: ${missingOffers.length} created, ${
+      offers.length - missingOffers.length
+    } reused across ${sellers.length} sellers.`,
   );
 
   logger.info("Finished seeding.");

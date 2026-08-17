@@ -12,6 +12,7 @@ import isBot from "@/lib/helpers/isBot"
 import type { Metadata } from "next"
 import { headers } from "next/headers"
 import { Suspense } from "react"
+import { BRAND, getSiteUrl } from "@/config/brand"
 
 export async function generateMetadata({
   params,
@@ -28,7 +29,7 @@ export async function generateMetadata({
   const headersList = await headers()
   const host = headersList.get("host")
   const protocol = headersList.get("x-forwarded-proto") || "https"
-  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || `${protocol}://${host}`
+  const baseUrl = getSiteUrl(`${protocol}://${host}`)
 
   let locales: string[] = []
   try {
@@ -45,9 +46,7 @@ export async function generateMetadata({
   })
 
   const title = collection.title
-  const description = `${collection.title} - ${
-    process.env.NEXT_PUBLIC_SITE_NAME || "Storefront"
-  }`
+  const description = `${collection.title} - ${BRAND.name}`
 
   return {
     title,
@@ -58,10 +57,10 @@ export async function generateMetadata({
       languages,
     },
     openGraph: {
-      title: `${title} | ${process.env.NEXT_PUBLIC_SITE_NAME || "Storefront"}`,
+      title: `${title} | ${BRAND.name}`,
       description,
       url: canonical,
-      siteName: process.env.NEXT_PUBLIC_SITE_NAME || "Storefront",
+      siteName: BRAND.name,
       type: "website",
     },
   }
@@ -74,7 +73,7 @@ const SingleCollectionsPage = async ({
 }) => {
   const { handle, locale } = await params
 
-  const bot = isBot(navigator.userAgent)
+  const bot = isBot((await headers()).get("user-agent") || "")
   const collection = await getCollectionByHandle(handle)
 
   if (!collection) return <NotFound />

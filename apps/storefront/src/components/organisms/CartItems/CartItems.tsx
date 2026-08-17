@@ -5,6 +5,7 @@ import {
 } from "@/components/cells"
 import { HttpTypes } from "@medusajs/types"
 import { EmptyCart } from "./EmptyCart"
+import { BRAND } from "@/config/brand"
 
 export const CartItems = ({ cart }: { cart: HttpTypes.StoreCart | null }) => {
   if (!cart) return null
@@ -42,18 +43,18 @@ function groupItemsBySeller(cart: HttpTypes.StoreCart) {
       }
       groupedBySeller[seller.id].items.push(item)
     } else {
-      if (!groupedBySeller["fleek"]) {
-        groupedBySeller["fleek"] = {
+      if (!groupedBySeller["akamba"]) {
+        groupedBySeller["akamba"] = {
           seller: {
-            name: "Fleek",
-            id: "fleek",
-            photo: "/Logo.svg",
+            name: BRAND.name,
+            id: "akamba",
+            photo: BRAND.logo,
             created_at: new Date(),
           },
           items: [],
         }
       }
-      groupedBySeller["fleek"].items.push(item)
+      groupedBySeller["akamba"].items.push(item)
     }
   })
 

@@ -1,5 +1,6 @@
 import LocalizedClientLink from "@/components/molecules/LocalizedLink/LocalizedLink"
 import footerLinks from "@/data/footerLinks"
+import { BRAND } from "@/config/brand"
 
 export function Footer() {
   return (
@@ -61,7 +62,9 @@ export function Footer() {
       </div>
 
       <div className="py-6 border rounded-sm " data-testid="footer-copyright">
-        <p className="text-md text-secondary text-center ">© 2026 Fleek</p>
+        <p className="text-md text-secondary text-center ">
+          © {new Date().getFullYear()} {BRAND.name}
+        </p>
       </div>
     </footer>
   )

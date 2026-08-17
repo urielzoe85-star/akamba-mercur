@@ -54,6 +54,8 @@ const nextConfig: NextConfig = {
     ]
   },
   typescript: {
+    // Mercur's generated client route map is produced by the backend build and
+    // is not available in Vercel's isolated Storefront build.
     ignoreBuildErrors: true
   }
 };

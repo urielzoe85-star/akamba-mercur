@@ -7,6 +7,7 @@ import {
   buildHreflangAlternates,
   getStorefrontLocales,
 } from "@/lib/helpers/hreflang"
+import { BRAND } from "@/config/brand"
 
 export const generateProductMetadata = async (
   product: HttpTypes.StoreProduct,
@@ -33,7 +34,7 @@ export const generateProductMetadata = async (
 
   return {
     title: product?.title,
-    description: `${product?.title} - ${process.env.NEXT_PUBLIC_SITE_NAME}`,
+    description: `${product?.title} - ${BRAND.name}`,
     robots: "index, follow",
     metadataBase: new URL(baseUrl),
     alternates: {
@@ -43,9 +44,9 @@ export const generateProductMetadata = async (
 
     openGraph: {
       title: product?.title,
-      description: `${product?.title} - ${process.env.NEXT_PUBLIC_SITE_NAME}`,
+      description: `${product?.title} - ${BRAND.name}`,
       url: canonical,
-      siteName: process.env.NEXT_PUBLIC_SITE_NAME,
+      siteName: BRAND.name,
       images: [
         {
           url:
@@ -61,7 +62,7 @@ export const generateProductMetadata = async (
     twitter: {
       card: "summary_large_image",
       title: product?.title,
-      description: `${product?.title} - ${process.env.NEXT_PUBLIC_SITE_NAME}`,
+      description: `${product?.title} - ${BRAND.name}`,
       images: [
         product?.thumbnail || `${protocol}://${host}/images/placeholder.svg`,
       ],
@@ -82,13 +83,13 @@ export const generateCategoryMetadata = async (
       `${protocol}://${host}/categories/${category.handle}`
     ),
     title: `${category.name} Category`,
-    description: `${category.name} Category - ${process.env.NEXT_PUBLIC_SITE_NAME}`,
+    description: `${category.name} Category - ${BRAND.name}`,
 
     openGraph: {
       title: category.name,
-      description: `${category.name} Category - ${process.env.NEXT_PUBLIC_SITE_NAME}`,
+      description: `${category.name} Category - ${BRAND.name}`,
       url: `${protocol}://${host}/categories/${category.handle}`,
-      siteName: process.env.NEXT_PUBLIC_SITE_NAME,
+      siteName: BRAND.name,
       images: [
         {
           url:
@@ -104,7 +105,7 @@ export const generateCategoryMetadata = async (
     twitter: {
       card: "summary_large_image",
       title: category.name,
-      description: `${category.name} Category - ${process.env.NEXT_PUBLIC_SITE_NAME}`,
+      description: `${category.name} Category - ${BRAND.name}`,
       images: [
         `${protocol}://${host}/images/categories/${category.handle}.png` ||
           `${protocol}://${host}/images/placeholder.svg`,

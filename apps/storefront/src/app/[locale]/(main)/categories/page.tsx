@@ -13,6 +13,7 @@ import {
   buildHreflangAlternates,
   getStorefrontLocales,
 } from "@/lib/helpers/hreflang"
+import { BRAND, getSiteUrl } from "@/config/brand"
 
 export const revalidate = 60
 
@@ -25,7 +26,7 @@ export async function generateMetadata({
   const headersList = await headers()
   const host = headersList.get("host")
   const protocol = headersList.get("x-forwarded-proto") || "https"
-  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || `${protocol}://${host}`
+  const baseUrl = getSiteUrl(`${protocol}://${host}`)
 
   let locales: string[] = []
   try {
@@ -42,9 +43,7 @@ export async function generateMetadata({
   })
 
   const title = "All Products"
-  const description = `Browse all products on ${
-    process.env.NEXT_PUBLIC_SITE_NAME || "our store"
-  }`
+  const description = `Découvrez tous les produits sur ${BRAND.name}`
 
   return {
     title,
@@ -55,10 +54,10 @@ export async function generateMetadata({
     },
     robots: { index: true, follow: true },
     openGraph: {
-      title: `${title} | ${process.env.NEXT_PUBLIC_SITE_NAME || "Storefront"}`,
+      title: `${title} | ${BRAND.name}`,
       description,
       url: canonical,
-      siteName: process.env.NEXT_PUBLIC_SITE_NAME || "Storefront",
+      siteName: BRAND.name,
       type: "website",
     },
   }
@@ -84,7 +83,7 @@ async function AllCategories({
   const headersList = await headers()
   const host = headersList.get("host")
   const protocol = headersList.get("x-forwarded-proto") || "https"
-  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || `${protocol}://${host}`
+  const baseUrl = getSiteUrl(`${protocol}://${host}`)
   const {
     response: { products: jsonLdProducts },
   } = await listProducts({

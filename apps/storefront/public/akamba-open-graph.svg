@@ -1,0 +1,11 @@
+<svg width="1200" height="630" viewBox="0 0 1200 630" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+  <title id="title">AKAMBA</title>
+  <desc id="desc">La marketplace camerounaise</desc>
+  <rect width="1200" height="630" fill="#F5F0E6"/>
+  <circle cx="1030" cy="120" r="260" fill="#F2C94C" opacity=".9"/>
+  <circle cx="1100" cy="590" r="330" fill="#0B6B3A"/>
+  <path d="M80 480C280 380 430 510 630 400S920 250 1200 330V630H80Z" fill="#111827" opacity=".08"/>
+  <text x="80" y="270" font-family="Arial, Helvetica, sans-serif" font-size="132" font-weight="800" letter-spacing="8" fill="#111827">AKAMBA</text>
+  <text x="88" y="350" font-family="Arial, Helvetica, sans-serif" font-size="42" font-weight="500" fill="#0B6B3A">La marketplace camerounaise</text>
+  <text x="88" y="420" font-family="Arial, Helvetica, sans-serif" font-size="30" fill="#374151">Achetez • Vendez • Faites-vous livrer</text>
+</svg>
