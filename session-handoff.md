@@ -1,6 +1,6 @@
 # Session Handoff — AKAMBA sur Mercur
 
-## État au 17 août 2026
+## État au 18 août 2026
 
 AKAMBA reste une personnalisation de Mercur/Medusa. Le Storefront reste prévu pour Vercel. Aucun reset de base, suppression de migration, secret, abonnement payant ou changement de version majeure non nécessaire n'a été effectué.
 
@@ -20,6 +20,20 @@ AKAMBA reste une personnalisation de Mercur/Medusa. Le Storefront reste prévu p
 - `apps/storefront/.env.template` et `apps/api/.env.template` documentent les variables requises sans valeur secrète, avec les valeurs AKAMBA/Cameroun/XAF et les options Apacheur, Babana, Capacitor et deep links.
 - `apps/api/medusa-config.ts` exige les secrets JWT/cookie en production et n'active Babana que si la configuration complète est présente.
 - `vercel.json` cible uniquement `apps/storefront` et utilise l'installation Bun figée.
+
+### Architecture définitive de test
+
+```text
+https://akamba.nexorasmartech.store/
+https://akamba.nexorasmartech.store/admin
+https://akamba.nexorasmartech.store/vendor
+https://akamba.nexorasmartech.store/api
+```
+
+- Le Storefront Next.js reste à la racine et reverse-proxy les trois préfixes avec `AKAMBA_ADMIN_ORIGIN`, `AKAMBA_VENDOR_ORIGIN` et `AKAMBA_API_ORIGIN`.
+- Les préfixes `/admin` et `/vendor` sont conservés vers les applications Vite ; `/api` est retiré avant transmission à Medusa/Mercur.
+- L'Admin est construit avec `VITE_APP_BASE=/admin/` et le Vendor avec `VITE_APP_BASE=/vendor/`. En local, les deux conservent `/` par défaut.
+- Les quatre origines CORS de l'API utilisent `https://akamba.nexorasmartech.store`.
 
 ### Seed idempotent
 
@@ -43,6 +57,9 @@ AKAMBA reste une personnalisation de Mercur/Medusa. Le Storefront reste prévu p
 
 ## Vérifications
 
+- Les builds Vite Admin (`VITE_APP_BASE=/admin/`) et Vendor (`VITE_APP_BASE=/vendor/`) réussissent ; leurs HTML utilisent les bons chemins d'assets et leurs bundles injectent les bons `basename` React Router.
+- Les configurations Vite locales gardent `base=/`, `__BASE__=/` et `allowedHosts: ['.trycloudflare.com']` ; leurs contrôles TypeScript réussissent.
+- Le build Storefront avec les trois origines de test réussit et `.next/routes-manifest.json` conserve `/admin` et `/vendor` tout en retirant `/api` des destinations Medusa.
 - `bun run --cwd apps/storefront test:unit` : 7 tests middleware et deep links réussis.
 - `bun run lint` : réussi.
 - `bun run --cwd packages/types build` : réussi.

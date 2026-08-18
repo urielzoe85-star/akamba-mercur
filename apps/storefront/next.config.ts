@@ -1,9 +1,40 @@
 import type { NextConfig } from 'next';
 
+const withoutTrailingSlash = (origin: string) => origin.replace(/\/+$/, '');
+
 const nextConfig: NextConfig = {
   output: "standalone",
   trailingSlash: false,
   reactStrictMode: true,
+  async rewrites() {
+    const rewrites = [];
+    const adminOrigin = process.env.AKAMBA_ADMIN_ORIGIN;
+    const vendorOrigin = process.env.AKAMBA_VENDOR_ORIGIN;
+    const apiOrigin = process.env.AKAMBA_API_ORIGIN;
+
+    if (adminOrigin) {
+      rewrites.push({
+        source: '/admin/:path*',
+        destination: `${withoutTrailingSlash(adminOrigin)}/admin/:path*`,
+      });
+    }
+
+    if (vendorOrigin) {
+      rewrites.push({
+        source: '/vendor/:path*',
+        destination: `${withoutTrailingSlash(vendorOrigin)}/vendor/:path*`,
+      });
+    }
+
+    if (apiOrigin) {
+      rewrites.push({
+        source: '/api/:path*',
+        destination: `${withoutTrailingSlash(apiOrigin)}/:path*`,
+      });
+    }
+
+    return rewrites;
+  },
   logging: {
     fetches: {
       fullUrl: true
