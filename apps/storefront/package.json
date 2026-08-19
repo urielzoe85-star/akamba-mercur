@@ -26,7 +26,7 @@
     "@medusajs/ui": "^4.0.33",
     "@mercurjs/client": "2.3.1",
     "@mercurjs/types": "2.3.1",
-    "@stripe/react-stripe-js": "^3.7.0",
+    "@stripe/react-stripe-js": "^6.8.1",
     "@stripe/stripe-js": "^7.1.0",
     "@talkjs/react": "^0.1.11",
     "@types/js-cookie": "^3.0.6",
